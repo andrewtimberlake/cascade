@@ -1,11 +1,11 @@
 require 'cascade/job/callbacks'
 
 module Cascade
-  class Job
+  module Job
     include Callbacks
 
-    def initialize(args = {})
-      @arguments = args
+    def self.included(mod)
+      mod.extend(ClassMethods)
     end
 
     def run
@@ -16,12 +16,12 @@ module Cascade
       self.class.name
     end
 
-    def spec
-      JobSpec.new(self)
-    end
+    module ClassMethods
+      include Callbacks::ClassMethods
 
-    def self.enqueue(job)
-      Queue.enqueue(job)
+      def enqueue(*args)
+        Queue.enqueue(name, *args)
+      end
     end
   end
 end

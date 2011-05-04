@@ -1,5 +1,5 @@
 module Cascade
-  class Job
+  module Job
     module Callbacks
       def run_callbacks(action, job_spec)
         if self.class.instance_variable_defined?('@callbacks')
@@ -12,10 +12,6 @@ module Cascade
             end
           end
         end
-      end
-
-      def self.included(mod)
-        mod.extend ClassMethods
       end
 
       module ClassMethods
