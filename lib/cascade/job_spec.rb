@@ -7,9 +7,12 @@ module Cascade
     key :arguments, Array
     key :priority, Integer, :default => 1
     key :run_at, Time, :default => lambda { Time.now.utc }
+    key :attempts, Integer, :default => 0
     key :locked_at, Time
     key :locked_by, String
     key :failed_at, Time
+    key :last_error, String
+    key :re_run, Boolean, :default => false
 
     def job
       @job ||= class_name.constantize.new(*arguments)

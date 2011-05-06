@@ -1,30 +1,52 @@
 module Cascade
-  class Queue
+  class Worker
+    def self.start
+      trap('TERM') { $exit = true }
+      trap('INT') { $exit = true }
+
+      loop do
+        run
+      end
+    end
+
     def self.run
       find_available.each do |job_spec|
-        completed_successully = true
+        break if $exit
         if lock_exclusively!(job_spec)
-          pid = fork do
-            job = job_spec.job
-            $0 = "Cascade::Job : #{job.describe}"
-            begin
-              job.run_callbacks(:before_run, job_spec)
-              job.run
-              job.run_callbacks(:success, job_spec)
-            rescue
-              puts "Error: #{$!}"
-              job.run_callbacks(:error, job_spec, $!)
-              completed_successully = false
-            ensure
-              job.run_callbacks(:after_run, job_spec)
-            end
-          end
-          Process.wait(pid)
-          if completed_successully
-            job_spec.destroy
-          end
+          run_forked(job_spec)
         end
       end
+    end
+
+    def self.run_forked(job_spec)
+      pid = fork do
+        job = job_spec.job
+        $0 = "Cascade::Job : #{name} : #{job.describe}"
+        run_job(job_spec, job)
+      end
+      Process.wait(pid)
+    end
+
+    def self.run_job(job_spec, job)
+      completed_successully = true
+      begin
+        job.run_callbacks(:before_run, job_spec)
+        job.run
+        job.run_callbacks(:on_success, job_spec)
+      rescue Exception => ex
+        job_spec.last_error = [ex, ex.backtrace].flatten.join("\n")
+        job_spec.failed_at = Time.now.utc
+        job.run_callbacks(:on_error, job_spec)
+        completed_successully = false
+      ensure
+        job.run_callbacks(:after_run, job_spec)
+      end
+      if completed_successully && !job_spec.re_run?
+        job_spec.destroy
+      else
+        job_spec.save!
+      end
+      completed_successully
     end
 
     def self.enqueue(class_name, *args)
@@ -37,7 +59,19 @@ module Cascade
       job.run_callbacks(:before_queue, job_spec)
 
       job_spec.save!
-      job
+      job_spec
+    end
+
+    def self.name=(name)
+      @name = name
+    end
+
+    def self.name
+      @name ||= generate_name
+    end
+
+    def self.generate_name
+      "#{Socket.gethostname} pid:#{Process.pid}" rescue "pid:#{Process.pid}"
     end
 
     private

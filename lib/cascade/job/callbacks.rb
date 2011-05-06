@@ -15,7 +15,7 @@ module Cascade
       end
 
       module ClassMethods
-        %w(before_queue before_run success error after_run).each do |action|
+        %w(before_queue before_run on_success on_error after_run).each do |action|
           define_method(action) do |*args, &block|
             add_callback(action.to_sym, args[0], &block)
           end

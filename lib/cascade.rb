@@ -1,3 +1,3 @@
-require 'cascade/queue'
+require 'cascade/worker'
 require 'cascade/job'
 require 'cascade/job_spec'

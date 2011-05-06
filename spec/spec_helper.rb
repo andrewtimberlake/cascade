@@ -25,3 +25,11 @@ class MyJob
   def initialize(*args)
   end
 end
+
+class ErrorJob
+  include Cascade::Job
+
+  def run
+    raise
+  end
+end

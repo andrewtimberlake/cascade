@@ -20,7 +20,7 @@ module Cascade
       include Callbacks::ClassMethods
 
       def enqueue(*args)
-        Queue.enqueue(name, *args)
+        Worker.enqueue(name, *args)
       end
     end
   end
