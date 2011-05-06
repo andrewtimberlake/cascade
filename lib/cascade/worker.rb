@@ -5,42 +5,78 @@ module Cascade
       trap('INT') { $exit = true }
 
       loop do
+        result = run
+
         break if $exit
-        run
+
+        count = result.sum
+        if count.zero?
+          sleep(5)
+        end
+
+        break if $exit
       end
     end
 
     def self.run
+      success = 0
+      failure = 0
+
       find_available.each do |job_spec|
         break if $exit
         if lock_exclusively!(job_spec)
-          run_forked(job_spec)
+          if run_forked(job_spec)
+            success += 1
+          else
+            failure += 1
+          end
         end
       end
+
+      [success, failure]
     end
 
     def self.run_forked(job_spec)
+      read, write = IO.pipe
+
       pid = fork do
         job = job_spec.job
         $0 = "Cascade::Job : #{name} : #{job.describe}"
-        run_job(job_spec, job)
+        if run_job(job_spec, job)
+          write.puts '1'
+        else
+          write.puts '0'
+        end
       end
+      write.close
+      result = read.read.strip
       Process.wait(pid)
+
+      return result == '1'
     end
 
     def self.run_job(job_spec, job)
+      job_spec.re_run = false
       completed_successully = true
       begin
         job.run_callbacks(:before_run, job_spec)
+
         job.run
+
         job.run_callbacks(:on_success, job_spec)
+
       rescue Exception => ex
         job_spec.last_error = [ex, ex.backtrace].flatten.join("\n")
         job_spec.failed_at = Time.now.utc
+
         job.run_callbacks(:on_error, job_spec)
+
         completed_successully = false
       ensure
         job.run_callbacks(:after_run, job_spec)
+
+        job_spec.locked_by = nil
+        job_spec.locked_at = nil
       end
       if completed_successully && !job_spec.re_run?
         job_spec.destroy
@@ -76,7 +112,7 @@ module Cascade
     end
 
     private
-      def self.find_available
+      def self.find_available(num = 10)
         right_now = Time.now.utc
 
         conditions = {
@@ -85,7 +121,7 @@ module Cascade
           :locked_at => nil
         }
 
-        job_specs = JobSpec.where(conditions).limit(-1).sort([[:priority, 1], [:run_at, 1]]).all
+        job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, 1], [:run_at, 1]]).all
         job_specs
       end
 
