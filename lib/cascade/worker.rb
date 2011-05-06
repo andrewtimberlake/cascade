@@ -5,6 +5,7 @@ module Cascade
       trap('INT') { $exit = true }
 
       loop do
+        break if $exit
         run
       end
     end
