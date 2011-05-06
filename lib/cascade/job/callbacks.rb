@@ -2,14 +2,11 @@ module Cascade
   module Job
     module Callbacks
       def run_callbacks(action, job_spec)
-        if self.class.instance_variable_defined?('@callbacks')
-          callbacks = self.class.instance_variable_get('@callbacks')
-          callbacks[action].each do |callback|
-            if callback.is_a?(Symbol)
-              send(callback, job_spec)
-            else
-              instance_exec job_spec, &callback
-            end
+        self.class.callbacks[action].each do |callback|
+          if callback.is_a?(Symbol)
+            send(callback, job_spec)
+          else
+            instance_exec job_spec, &callback
           end
         end
       end
@@ -21,8 +18,15 @@ module Cascade
           end
         end
 
+        def callbacks
+          @callbacks ||= if superclass.respond_to?(:callbacks)
+            superclass.send(:callbacks)
+          else
+            Hash.new { |h,k| h[k] = [] }
+          end
+        end
+
         def add_callback(action, method = nil, &block)
-          callbacks = @callbacks ||= Hash.new { |h,k| h[k] = [] }
           callbacks[action] << (method || block)
         end
       end
