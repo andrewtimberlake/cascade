@@ -33,3 +33,11 @@ class ErrorJob
     raise
   end
 end
+
+class RepeatableJob
+  include Cascade::Job
+
+  on_success do |job_spec|
+    job_spec.re_run = true
+  end
+end

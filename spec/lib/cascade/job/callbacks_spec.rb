@@ -22,6 +22,10 @@ class TestJob
   end
 end
 
+class SubClassJob < TestJob
+
+end
+
 module Cascade
   describe "Job::Callbacks" do
     it "should run the before_queue callback before the job is added to the queue" do
@@ -44,6 +48,16 @@ module Cascade
       Worker.run_job(job_spec, job)
 
       job.history.should == [:before_queue, :before_run, :on_error, :after_run]
+    end
+
+    context "on a sub class" do
+      it "should run before_queue, before_run, on_success and after_run callbacks on a successful job run" do
+        job_spec = SubClassJob.enqueue
+        job = job_spec.job
+        Worker.run_job(job_spec, job)
+
+        job.history.should == [:before_queue, :before_run, :on_success, :after_run]
+      end
     end
   end
 end
