@@ -130,6 +130,8 @@ module Cascade
 
         conditions = {
           :_id => job_spec.id,
+          :locked_at => nil,
+          :locked_by => nil,
           :run_at => {'$lte' => right_now}
         }
         job_spec.collection.update(conditions, {'$set' => {:locked_at => right_now, :locked_by => name}})
