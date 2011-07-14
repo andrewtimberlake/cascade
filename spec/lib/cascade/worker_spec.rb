@@ -26,8 +26,28 @@ module Cascade
       end
     end
 
-    context "when the job fails" do
+    context "when the job raises an exception" do
       let(:job_spec) { ErrorJob.enqueue }
+
+      before do
+        job_spec
+        Worker.run
+      end
+
+      it "should set the last error if a job fails" do
+        job_spec.reload
+        job_spec.last_error.should_not be_nil
+      end
+
+      it "should set failed_at a job fails" do
+        job_spec.reload
+        job_spec.failed_at.should_not be_nil
+      end
+
+    end
+
+    context "when the job fails" do
+      let(:job_spec) { CatastrophicFailureJob.enqueue }
 
       before do
         job_spec
@@ -63,6 +83,34 @@ module Cascade
       it "should save the re_run flag" do
         job_spec.reload
         job_spec.re_run.should be_true
+      end
+    end
+
+    context "displaying the job queue" do
+      before do
+        js = RepeatableJob.enqueue
+        js.update_attributes(:last_error => 'Test Error', :failed_at => Time.now.utc)
+
+        js = ErrorJob.enqueue
+        js.update_attributes(:locked_by => 'TestRunner', :locked_at => Time.now.utc)
+      end
+
+      it "should show the job counts" do
+        results = Worker.queue
+        results['ErrorJob'][:count].should eql(1)
+        results['RepeatableJob'][:count].should eql(1)
+      end
+
+      it "show the running counts" do
+        results = Worker.queue
+        results['ErrorJob'][:running].should eql(1)
+        results['RepeatableJob'][:running].should eql(0)
+      end
+
+      it "show the failed counts" do
+        results = Worker.queue
+        results['ErrorJob'][:failed].should eql(0)
+        results['RepeatableJob'][:failed].should eql(1)
       end
     end
   end

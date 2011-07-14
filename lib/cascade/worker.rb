@@ -50,7 +50,13 @@ module Cascade
       end
       write.close
       result = read.read.strip
-      Process.wait(pid)
+      pid, status = Process.wait2(pid)
+
+      if status.exitstatus != 0
+        job_spec.reload
+        job_spec.update_attributes(:last_error => 'Child process failure',
+                                   :failed_at => Time.now.utc)
+      end
 
       return result == '1'
     end
@@ -109,6 +115,29 @@ module Cascade
 
     def self.generate_name
       "#{Socket.gethostname} pid:#{Process.pid}" rescue "pid:#{Process.pid}"
+    end
+
+    MAP_FUNCTION = <<-MAP
+      function () {
+        emit(this.class_name, {count:1, running:this.locked_at == null ? 0 : 1, failed:this.failed_at == null ? 0 : 1});
+      }
+    MAP
+
+    REDUCE_FUNCTION = <<-REDUCE
+      function (k, v) {
+        obj = {count:0, running:0, failed:0};
+        for (var i in v) {
+          obj.count += v[i].count;
+          obj.running += v[i].running;
+          obj.failed += v[i].failed;
+        }
+        return obj;
+      }
+    REDUCE
+
+    def self.queue
+      results = JobSpec.collection.map_reduce MAP_FUNCTION, REDUCE_FUNCTION, :out => {:inline => 1}, :raw => true
+      results['results'].inject({}){|m,e| m[e['_id']] = {:count => e['value']['count'].to_i, :running => e['value']['running'].to_i, :failed => e['value']['failed'].to_i}; m }
     end
 
     private
