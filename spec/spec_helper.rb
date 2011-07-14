@@ -34,6 +34,14 @@ class ErrorJob
   end
 end
 
+class CatastrophicFailureJob
+  include Cascade::Job
+
+  def run
+    exit!
+  end
+end
+
 class RepeatableJob
   include Cascade::Job
 

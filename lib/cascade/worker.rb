@@ -50,7 +50,13 @@ module Cascade
       end
       write.close
       result = read.read.strip
-      Process.wait(pid)
+      pid, status = Process.wait2(pid)
+
+      if status.exitstatus != 0
+        job_spec.reload
+        job_spec.update_attributes(:last_error => 'Child process failure',
+                                   :failed_at => Time.now.utc)
+      end
 
       return result == '1'
     end

@@ -26,8 +26,28 @@ module Cascade
       end
     end
 
-    context "when the job fails" do
+    context "when the job raises an exception" do
       let(:job_spec) { ErrorJob.enqueue }
+
+      before do
+        job_spec
+        Worker.run
+      end
+
+      it "should set the last error if a job fails" do
+        job_spec.reload
+        job_spec.last_error.should_not be_nil
+      end
+
+      it "should set failed_at a job fails" do
+        job_spec.reload
+        job_spec.failed_at.should_not be_nil
+      end
+
+    end
+
+    context "when the job fails" do
+      let(:job_spec) { CatastrophicFailureJob.enqueue }
 
       before do
         job_spec
