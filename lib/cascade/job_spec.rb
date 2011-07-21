@@ -17,5 +17,13 @@ module Cascade
     def job
       @job ||= class_name.constantize.new(*arguments)
     end
+
+    def reset!
+      update_attributes(:failed_at => nil,
+                        :last_error => nil,
+                        :locked_at => nil,
+                        :locked_by => nil,
+                        :attempts => 0)
+    end
   end
 end
