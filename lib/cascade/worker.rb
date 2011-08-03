@@ -92,11 +92,21 @@ module Cascade
       completed_successully
     end
 
-    def self.enqueue(class_name, *args)
-      job_spec = JobSpec.new(:class_name => class_name,
+    def self.enqueue(job_class, *args)
+      priority = 1
+      run_at = Time.now.utc
+
+      options = args[-1]
+      if options.respond_to?(:keys)
+        priority = options.delete(:priority)
+        run_at = options.delete(:run_at)
+        args.pop if options.size == 0
+      end
+
+      job_spec = JobSpec.new(:class_name => job_class.name,
                              :arguments => args,
-                             :run_at => Time.now.utc,
-                             :priority => 1)
+                             :run_at => run_at,
+                             :priority => priority)
 
       job = job_spec.job
       job.run_callbacks(:before_queue, job_spec)

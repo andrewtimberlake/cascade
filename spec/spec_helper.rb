@@ -1,6 +1,7 @@
 require 'rubygems'
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 require 'mongo_mapper'
+require 'timecop'
 require 'cascade'
 
 RSpec.configure do |config|

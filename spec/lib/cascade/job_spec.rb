@@ -4,8 +4,17 @@ module Cascade
   describe Job do
     let(:job) { MyJob.new() }
 
-    it "should be able to describe itself" do
-      job.describe.should == 'MyJob'
+    context "#describe" do
+      it "describes itself" do
+        job.describe.should == 'MyJob'
+      end
+    end
+
+    context "#enqueue" do
+      it "adds itself to the queue" do
+        Worker.should_receive(:enqueue).with(MyJob, :one, :two)
+        MyJob.enqueue(:one, :two)
+      end
     end
   end
 end
