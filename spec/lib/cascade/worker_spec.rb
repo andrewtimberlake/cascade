@@ -2,6 +2,58 @@ require 'spec_helper'
 
 module Cascade
   describe Worker do
+    context "when queueing a job" do
+      before do
+        Timecop.freeze
+      end
+
+      after do
+        Timecop.return
+      end
+
+      let!(:job_spec) { Worker.enqueue(MyJob, :one, :two) }
+
+      it "creates a job spec with the specified class" do
+        job_spec.class_name.should eql('MyJob')
+      end
+
+      it "creates a job spec with the correct arguments" do
+        job_spec.arguments.should eql([:one, :two])
+      end
+
+      it "creates a job spec with a default priority of 1" do
+        job_spec.priority.should eql(1)
+      end
+
+      it "creates a job spec with a default run time of now" do
+        job_spec.run_at.should eql(Time.now.utc)
+      end
+
+      context "with options" do
+        let!(:job_spec) { Worker.enqueue(MyJob, :one, :two, :priority => -5, :run_at => 5.minutes.from_now) }
+
+        it "creates a job spec with the correct arguments" do
+          job_spec.arguments.should eql([:one, :two])
+        end
+
+        it "creates a job spec with a priority of -5" do
+          job_spec.priority.should eql(-5)
+        end
+
+        it "creates a job spec with a run time of 5 minutes from now" do
+          job_spec.run_at.should eql(5.minutes.from_now)
+        end
+      end
+
+      context "with options (and the job takes an options hash)" do
+        let!(:job_spec) { Worker.enqueue(MyJob, :one, :two, :three => 3, :four => 4, :priority => -5, :run_at => 5.minutes.from_now) }
+
+        it "creates a job spec with the correct arguments" do
+          job_spec.arguments.should eql([:one, :two, {:three => 3, :four => 4}])
+        end
+      end
+    end
+
     context "when running all jobs" do
       before do
         MyJob.enqueue
