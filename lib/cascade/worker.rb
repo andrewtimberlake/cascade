@@ -54,7 +54,9 @@ module Cascade
 
       if status.exitstatus != 0
         job_spec.reload
-        job_spec.update_attributes(:last_error => 'Child process failure',
+        job_spec.update_attributes(:locked_at => nil,
+                                   :locked_by => nil,
+                                   :last_error => 'Child process failure',
                                    :failed_at => Time.now.utc)
       end
 
