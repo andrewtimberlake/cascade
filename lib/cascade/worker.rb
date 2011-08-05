@@ -54,7 +54,9 @@ module Cascade
 
       if status.exitstatus != 0
         job_spec.reload
-        job_spec.update_attributes(:last_error => 'Child process failure',
+        job_spec.update_attributes(:locked_at => nil,
+                                   :locked_by => nil,
+                                   :last_error => 'Child process failure',
                                    :failed_at => Time.now.utc)
       end
 
@@ -160,7 +162,7 @@ module Cascade
           :locked_at => nil
         }
 
-        job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, 1], [:run_at, 1]]).all
+        job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, -1], [:run_at, 1]]).all
         job_specs
       end
 
