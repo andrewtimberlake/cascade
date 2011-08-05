@@ -160,7 +160,7 @@ module Cascade
           :locked_at => nil
         }
 
-        job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, 1], [:run_at, 1]]).all
+        job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, -1], [:run_at, 1]]).all
         job_specs
       end
 
