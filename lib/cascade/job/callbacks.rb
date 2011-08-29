@@ -2,7 +2,7 @@ module Cascade
   module Job
     module Callbacks
       def run_callbacks(action, job_spec)
-        self.class.callbacks[action].each do |callback|
+        self.class.all_callbacks[action].each do |callback|
           if callback.is_a?(Symbol)
             send(callback, job_spec)
           else
@@ -19,10 +19,16 @@ module Cascade
         end
 
         def callbacks
-          @callbacks ||= if superclass.respond_to?(:callbacks)
-            superclass.send(:callbacks)
+          @callbacks ||= Hash.new { |h,k| h[k] = [] }
+        end
+
+        def all_callbacks
+          if superclass.respond_to?(:callbacks)
+            callbacks.merge superclass.send(:callbacks) do |key, old_val, new_val|
+              new_val + old_val
+            end
           else
-            Hash.new { |h,k| h[k] = [] }
+            callbacks
           end
         end
 
