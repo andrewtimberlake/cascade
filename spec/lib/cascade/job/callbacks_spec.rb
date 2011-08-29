@@ -32,6 +32,12 @@ class SecondSubClassJob < TestJob
   end
 end
 
+class CancellingJob < TestJob
+  before_run do |job_spec|
+    false
+  end
+end
+
 module Cascade
   describe "Job::Callbacks" do
     it "should run the before_queue callback before the job is added to the queue" do
@@ -72,6 +78,14 @@ module Cascade
 
         job.history.should == [:before_queue, :before_run, 'SecondSubClassJob#before_run', :on_success, :after_run]
       end
+    end
+
+    it "can cancel itself in the before_run callback by returning false" do
+      job_spec = CancellingJob.enqueue
+      job = job_spec.job
+      Worker.run_job(job_spec, job)
+
+      job.history.should == [:before_queue, :before_run, :after_run]
     end
   end
 end
