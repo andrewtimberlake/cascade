@@ -3,12 +3,14 @@ module Cascade
     module Callbacks
       def run_callbacks(action, job_spec)
         self.class.all_callbacks[action].each do |callback|
-          if callback.is_a?(Symbol)
+          result = if callback.is_a?(Symbol)
             send(callback, job_spec)
           else
             instance_exec job_spec, &callback
           end
+          return false unless result
         end
+        true
       end
 
       module ClassMethods
