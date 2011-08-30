@@ -4,17 +4,29 @@ module Cascade
       def run_callbacks(action, job_spec)
         self.class.all_callbacks[action].each do |callback|
           result = if callback.is_a?(Symbol)
-            send(callback, job_spec)
-          else
-            instance_exec job_spec, &callback
-          end
+                     send(callback, job_spec)
+                   else
+                     instance_exec job_spec, &callback
+                   end
           return false unless result
         end
         true
       end
 
       module ClassMethods
-        %w(before_queue before_run on_success on_error after_run).each do |action|
+        def run_callbacks(action, job_spec)
+          all_callbacks[action].each do |callback|
+            result = if callback.is_a?(Symbol)
+                       send(callback, job_spec)
+                     else
+                       callback.call(job_spec)
+                     end
+            return false unless result
+          end
+          true
+        end
+
+        %w(before_queue after_fork before_run on_success on_error after_run).each do |action|
           define_method(action) do |*args, &block|
             add_callback(action.to_sym, args[0], &block)
           end

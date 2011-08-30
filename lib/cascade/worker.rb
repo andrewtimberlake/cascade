@@ -40,6 +40,10 @@ module Cascade
       read, write = IO.pipe
 
       pid = fork do
+        job_class = job_spec.class_name.constantize
+        if job_class.respond_to?(:after_fork)
+          job_class.run_callbacks(:after_fork, job_spec)
+        end
         job = job_spec.job
         $0 = "Cascade::Job : #{name} : #{job.describe}"
         if run_job(job_spec, job)
