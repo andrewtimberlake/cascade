@@ -3,6 +3,10 @@ require 'spec_helper'
 class TestJob
   include Cascade::Job
 
+  after_fork do |job_spec|
+    job_spec['after_fork'] = true
+  end
+
   def initialize(raise_error = false)
     @raise_error = raise_error
   end
@@ -46,6 +50,12 @@ module Cascade
       job.history.should == [:before_queue]
     end
 
+    it "runs after_fork after forking the job" do
+      job_spec = TestJob.enqueue(:raise_error)
+      Worker.run_forked job_spec
+      job_spec.reload['after_fork'].should be_true
+    end
+
     it "should run before_queue, before_run, on_success and after_run callbacks on a successful job run" do
       job_spec = TestJob.enqueue
       job = job_spec.job
@@ -55,7 +65,7 @@ module Cascade
     end
 
     it "should run before_queue, before_run, on_error and after_run callbacks on a successful job run" do
-      job_spec = TestJob.enqueue(true)
+      job_spec = TestJob.enqueue(:raise_error)
       job = job_spec.job
       Worker.run_job(job_spec, job)
 
