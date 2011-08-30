@@ -38,7 +38,7 @@ module Cascade
 
         def all_callbacks
           if superclass.respond_to?(:callbacks)
-            callbacks.merge superclass.send(:callbacks) do |key, old_val, new_val|
+            callbacks.merge superclass.send(:all_callbacks) do |key, old_val, new_val|
               new_val + old_val
             end
           else

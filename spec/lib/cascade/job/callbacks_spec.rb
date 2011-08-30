@@ -30,6 +30,10 @@ class SubClassJob < TestJob
 
 end
 
+class SubSubClassJob < SubClassJob
+
+end
+
 class SecondSubClassJob < TestJob
   before_run do |job_spec|
     history << 'SecondSubClassJob#before_run'
@@ -87,6 +91,16 @@ module Cascade
         Worker.run_job(job_spec, job)
 
         job.history.should == [:before_queue, :before_run, 'SecondSubClassJob#before_run', :on_success, :after_run]
+      end
+    end
+
+    context "on a deep sub class" do
+      it "runs the parent's parent callbacks" do
+        job_spec = SubSubClassJob.enqueue
+        job = job_spec.job
+        Worker.run_job(job_spec, job)
+
+        job.history.should == [:before_queue, :before_run, :on_success, :after_run]
       end
     end
 
