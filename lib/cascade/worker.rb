@@ -1,13 +1,22 @@
 module Cascade
   class Worker
+    attr_reader :number
+    attr_accessor :child_pid
     def initialize(number)
       @number = number
+      self.child_pid = nil
     end
-    attr_reader :number
 
     def start
       proc_name = $0
       $0 = [proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
+
+      [:INT, :TERM, :QUIT].each do |sig|
+        trap(sig) do
+          Process.kill(sig, child_pid) if child_pid
+          $exit = true
+        end
+      end
 
       loop do
         result = run
@@ -44,7 +53,13 @@ module Cascade
     def run_forked(job_spec)
       read, write = IO.pipe
 
-      pid = fork do
+      self.child_pid = fork do
+        [:INT, :TERM, :QUIT].each do |sig|
+          trap(sig) do
+            $exit = true
+          end
+        end
+
         read.close
 
         job_class = job_spec.class_name.constantize
@@ -62,7 +77,8 @@ module Cascade
       end
       write.close
       result = read.read.strip
-      pid, status = Process.wait2(pid)
+      pid, status = Process.wait2(child_pid)
+      child_pid = nil
 
       if status.exitstatus != 0
         job_spec.reload

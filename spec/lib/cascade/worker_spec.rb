@@ -215,5 +215,22 @@ module Cascade
         results['RepeatableJob'][:failed].should eql(1)
       end
     end
+
+    context "when the worker exits" do
+      let!(:job_spec) { Worker.enqueue(ExitableJob) }
+
+      it "gives the job an option to exit early" do
+        pid = fork do
+          trap(:TERM) { $exit = true; }
+          Worker.new(1).start
+        end
+        sleep 0.5
+        Process.kill(:TERM, pid)
+        sleep 0.1
+        Timeout::timeout(2) do
+          Process.wait(pid)
+        end
+      end
+    end
   end
 end

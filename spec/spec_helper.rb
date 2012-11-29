@@ -58,3 +58,17 @@ class RepeatableJob
     job_spec.re_run = true
   end
 end
+
+class ExitableJob
+  include Cascade::Job
+
+  def run
+    count = 0
+    loop do
+      sleep 0.1
+      break if $exit
+      count += 1
+      raise 'This should have exited by now' if count > 1000
+    end
+  end
+end
