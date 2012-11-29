@@ -82,7 +82,7 @@ module Cascade
           index = CHILDREN.index(pid)
           break unless index #If we're reducing the children through SIGTTOU then we won't find the child and we don't want to refork
           unless $exit
-            CHILDREN[index] = fork_worker(index+1)
+            CHILDREN[index] = fork_worker(index)
           end
         end
       rescue Errno::ECHILD
