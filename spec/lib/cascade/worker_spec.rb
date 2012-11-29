@@ -59,7 +59,7 @@ module Cascade
         MyJob.enqueue
         ErrorJob.enqueue
 
-        result = Worker.run
+        result = Worker.new(1).run
 
         @success = result[0]
         @failure = result[1]
@@ -83,7 +83,7 @@ module Cascade
 
       before do
         job_spec
-        Worker.run
+        Worker.new(1).run
       end
 
       it "should set the last error if a job fails" do
@@ -113,7 +113,7 @@ module Cascade
 
       before do
         job_spec
-        Worker.run
+        Worker.new(1).run
       end
 
       it "should set the last error if a job fails" do
@@ -143,7 +143,7 @@ module Cascade
 
       before do
         job_spec
-        Worker.run
+        Worker.new(1).run
       end
 
       it "should the last error if a job fails" do
@@ -173,7 +173,7 @@ module Cascade
 
       before do
         job_spec
-        Worker.run
+        Worker.new(1).run
       end
 
       it "should remove the locks" do

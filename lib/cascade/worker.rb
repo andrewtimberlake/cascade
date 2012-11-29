@@ -1,8 +1,13 @@
 module Cascade
   class Worker
-    def self.start
-      trap('TERM') { $exit = true }
-      trap('INT') { $exit = true }
+    def initialize(number)
+      @number = number
+    end
+    attr_reader :number
+
+    def start
+      proc_name = $0
+      $0 = [proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
 
       loop do
         result = run
@@ -18,7 +23,7 @@ module Cascade
       end
     end
 
-    def self.run
+    def run
       success = 0
       failure = 0
 
@@ -36,7 +41,7 @@ module Cascade
       [success, failure]
     end
 
-    def self.run_forked(job_spec)
+    def run_forked(job_spec)
       read, write = IO.pipe
 
       pid = fork do
@@ -70,7 +75,7 @@ module Cascade
       return result == '1'
     end
 
-    def self.run_job(job_spec, job)
+    def run_job(job_spec, job)
       job_spec.re_run = false
       completed_successully = true
       begin
@@ -122,15 +127,15 @@ module Cascade
       job_spec
     end
 
-    def self.name=(name)
+    def name=(name)
       @name = name
     end
 
-    def self.name
+    def name
       @name ||= generate_name
     end
 
-    def self.generate_name
+    def generate_name
       "#{Socket.gethostname} pid:#{Process.pid}" rescue "pid:#{Process.pid}"
     end
 
@@ -158,7 +163,7 @@ module Cascade
     end
 
     private
-      def self.find_available(num = 10)
+      def find_available(num = 10)
         right_now = Time.now.utc
 
         conditions = {
@@ -171,7 +176,7 @@ module Cascade
         job_specs
       end
 
-      def self.lock_exclusively!(job_spec)
+      def lock_exclusively!(job_spec)
         right_now = Time.now.utc
 
         conditions = {
