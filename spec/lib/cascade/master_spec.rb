@@ -31,7 +31,7 @@ module Cascade
     it "master and all workers should exit on TERM" do
       output = capture_output do
         master = fork do
-          Master.new(TestWorker).start
+          Master.new(TestWorker).start(2)
         end
         sleep 0.2
         Process.kill(:TERM, master)
@@ -48,7 +48,7 @@ module Cascade
     it "auto restarts a worker which dies" do
       output = capture_output do
         master = fork do
-          Master.new(DyingWorker).start
+          Master.new(DyingWorker).start(2)
         end
         sleep 0.2
         Process.kill(:TERM, master)
@@ -63,7 +63,7 @@ module Cascade
     it "adds a worker on SIGTTIN" do
       output = capture_output do
         master = fork do
-          Master.new(TestWorker).start
+          Master.new(TestWorker).start(2)
         end
         sleep 0.2
         Process.kill(:TTIN, master)
@@ -80,7 +80,7 @@ module Cascade
     it "removes a worker on SIGTTOU" do
       output = capture_output do
         master = fork do
-          Master.new(TestWorker).start
+          Master.new(TestWorker).start(2)
         end
         sleep 0.2
         Process.kill(:TTOU, master)

@@ -12,7 +12,7 @@ module Cascade
     SIG_QUEUE = []
     SELF_PIPE = []
 
-    def start
+    def start(workers=2)
       init_self_pipe!
 
       [:TERM, :INT, :QUIT, :TTIN, :TTOU, :CHLD].each do |sig|
@@ -22,7 +22,7 @@ module Cascade
         end
       end
 
-      (0..1).each do |i|
+      (0..workers-1).each do |i|
         CHILDREN << fork_worker(i)
       end
 
