@@ -8,14 +8,17 @@ module Cascade
     attr_reader :worker_class
     attr_accessor :children
 
-    CHILDREN = []
-    SIG_QUEUE = []
-    SELF_PIPE = []
+    CHILDREN       = []
+    SIG_QUEUE      = []
+    SELF_PIPE      = []
+    QUIT_SIGNALS   = [:TERM, :INT, :QUIT]
+    MASTER_SIGNALS = [:TTIN, :TTOU, :CHLD, :USR2]
+    WORKER_SIGNALS = []
 
     def start(workers=2)
       init_self_pipe!
 
-      [:TERM, :INT, :QUIT, :TTIN, :TTOU, :CHLD].each do |sig|
+      (QUIT_SIGNALS + MASTER_SIGNALS).each do |sig|
         trap(sig) do
           SIG_QUEUE << sig
           awaken_master
@@ -92,10 +95,10 @@ module Cascade
 
     def fork_worker(number)
       fork do
-        [:TTIN, :TTOU].each do |sig|
+        MASTER_SIGNALS.each do |sig|
           trap(sig) {}
         end
-        [:TERM, :INT, :QUIT].each do |sig|
+        QUIT_SIGNALS.each do |sig|
           trap(sig) do
             $exit = true
           end
