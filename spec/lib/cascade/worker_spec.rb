@@ -230,6 +230,9 @@ module Cascade
         Timeout::timeout(2) do
           Process.wait(pid)
         end
+
+        job_spec.reload
+        job_spec.last_error.should be_nil
       end
     end
   end

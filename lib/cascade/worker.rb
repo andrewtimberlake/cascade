@@ -99,6 +99,8 @@ module Cascade
           job.run
           job.run_callbacks(:on_success, job_spec)
         end
+      rescue ReRun => ex
+        completed_successully = false
       rescue Exception => ex
         job_spec.last_error = [ex, ex.backtrace].flatten.join("\n")
         job_spec.failed_at = Time.now.utc

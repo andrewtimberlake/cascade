@@ -66,7 +66,7 @@ class ExitableJob
     count = 0
     loop do
       sleep 0.1
-      break if $exit
+      raise Cascade::ReRun if $exit
       count += 1
       raise 'This should have exited by now' if count > 1000
     end
