@@ -40,6 +40,8 @@ module Cascade
       read, write = IO.pipe
 
       pid = fork do
+        read.close
+
         job_class = job_spec.class_name.constantize
         if job_class.respond_to?(:after_fork)
           job_class.run_callbacks(:after_fork, job_spec)
@@ -51,6 +53,7 @@ module Cascade
         else
           write.puts '0'
         end
+        write.close
       end
       write.close
       result = read.read.strip
