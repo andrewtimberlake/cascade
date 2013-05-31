@@ -3,16 +3,17 @@ module Cascade
     include ::MongoMapper::Document
     set_collection_name 'cascade_jobs'
 
-    key :class_name, String, :required => true
-    key :arguments, Array
-    key :priority, Integer, :default => 1
-    key :run_at, Time, :default => lambda { Time.now.utc }
-    key :attempts, Integer, :default => 0
-    key :locked_at, Time
-    key :locked_by, String
-    key :failed_at, Time
+    key :class_name, String,  :required => true
+    key :arguments,  Array
+    key :priority,   Integer, :default => 1
+    key :run_at,     Time,    :default => lambda { Time.now.utc }
+    key :attempts,   Integer, :default => 0
+    key :locked_at,  Time
+    key :locked_by,  String
+    key :failed_at,  Time
     key :last_error, String
-    key :re_run, Boolean, :default => false
+    key :re_run,     Boolean, :default => false
+    key :options,    Hash
 
     def job
       @job ||= class_name.constantize.new(*arguments)

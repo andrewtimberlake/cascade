@@ -29,8 +29,8 @@ module Cascade
         job_spec.run_at.should eql(Time.now.utc)
       end
 
-      context "with options" do
-        let!(:job_spec) { Worker.enqueue(MyJob, :one, :two, :priority => -5, :run_at => 5.minutes.from_now) }
+      context "with an options hash" do
+        let!(:job_spec) { Worker.enqueue(MyJob, :one, :two, :priority => -5, :run_at => 5.minutes.from_now, options: {one: 1}) }
 
         it "creates a job spec with the correct arguments" do
           job_spec.arguments.should eql([:one, :two])
@@ -42,6 +42,10 @@ module Cascade
 
         it "creates a job spec with a run time of 5 minutes from now" do
           job_spec.run_at.should eql(5.minutes.from_now)
+        end
+
+        it "creates a job spec with it's own options hash" do
+          job_spec.options.should eql({'one' => 1})
         end
       end
 

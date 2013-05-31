@@ -128,15 +128,17 @@ module Cascade
 
       options = args[-1]
       if options.respond_to?(:keys)
-        priority = options.delete(:priority)
-        run_at = options.delete(:run_at)
+        priority     = options.delete(:priority)
+        run_at       = options.delete(:run_at)
+        job_options  = options.delete(:options) || {}
         args.pop if options.size == 0
       end
 
       job_spec = JobSpec.new(:class_name => job_class.name,
-                             :arguments => args,
-                             :run_at => run_at,
-                             :priority => priority)
+                             :arguments  => args,
+                             :run_at     => run_at,
+                             :priority   => priority,
+                             :options    => job_options)
 
       job = job_spec.job
       job.run_callbacks(:before_queue, job_spec)
