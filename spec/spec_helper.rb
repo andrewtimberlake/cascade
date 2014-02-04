@@ -11,7 +11,7 @@ RSpec.configure do |config|
   #Erase the entire database after each test
   config.after(:each) do
     MongoMapper.database.collections.each do |collection|
-      collection.remove
+      collection.remove unless collection.name =~ /\Asystem\./
     end
   end
 end

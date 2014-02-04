@@ -124,13 +124,13 @@ module Cascade
 
     def self.enqueue(job_class, *args)
       priority = 1
-      run_at = Time.now.utc
+      run_at   = Time.now.utc
 
       options = args[-1]
       if options.respond_to?(:keys)
-        priority     = options.delete(:priority)
-        run_at       = options.delete(:run_at)
-        job_options  = options.delete(:options) || {}
+        priority     = options.delete(:priority) || priority
+        run_at       = options.delete(:run_at)   || run_at
+        job_options  = options.delete(:options)  || {}
         args.pop if options.size == 0
       end
 

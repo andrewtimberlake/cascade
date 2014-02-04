@@ -26,7 +26,7 @@ module Cascade
       end
 
       it "creates a job spec with a default run time of now" do
-        job_spec.run_at.should eql(Time.now.utc)
+        job_spec.run_at.strftime('%Y%m%d%H%M').should eql(Time.now.utc.strftime('%Y%m%d%H%M'))
       end
 
       context "with an options hash" do
@@ -41,7 +41,7 @@ module Cascade
         end
 
         it "creates a job spec with a run time of 5 minutes from now" do
-          job_spec.run_at.should eql(5.minutes.from_now)
+          job_spec.run_at.strftime('%Y%m%d%H%M').should eql(5.minutes.from_now.utc.strftime('%Y%m%d%H%M'))
         end
 
         it "creates a job spec with it's own options hash" do
