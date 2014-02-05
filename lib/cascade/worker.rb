@@ -165,12 +165,17 @@ module Cascade
       right_now = Time.now.utc
 
       conditions = {
-        run_at: {'$lte' => right_now},
+        run_at: {:$lte => right_now},
         failed_at: nil,
-        locked_at: nil
+        locked_at: nil,
+        priority: {:$gte => 1},
       }
 
-      job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, -1], [:run_at, 1]]).all
+      job_specs = JobSpec.where(conditions).limit(-num).all
+      if job_specs.empty?
+        conditions[:priority] = {:$lt => 1}
+        job_specs = JobSpec.where(conditions).limit(-num).all
+      end
       job_specs
     end
 
