@@ -38,6 +38,7 @@ module Cascade
             result = run
             set_proc_name # Re-set it because each job changes to show the job being run
             count = result.sum
+            completed_jobs += count
             sleep(5) if count.zero? && !$exit
           end
         end
