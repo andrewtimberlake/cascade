@@ -82,10 +82,10 @@ module Cascade
 
       if status.exitstatus != 0
         job_spec.reload
-        job_spec.update_attributes(:locked_at => nil,
-                                   :locked_by => nil,
-                                   :last_error => 'Child process failure',
-                                   :failed_at => Time.now.utc)
+        job_spec.update_attributes(locked_at:  nil,
+                                   locked_by:  nil,
+                                   last_error: 'Child process failure',
+                                   failed_at:  Time.now.utc)
       end
 
       return result == '1'
@@ -123,22 +123,23 @@ module Cascade
     end
 
     def self.enqueue(job_class, *args)
-      priority = 1
-      run_at   = Time.now.utc
+      priority, run_at = nil
 
       options = args[-1]
       if options.respond_to?(:keys)
-        priority     = options.delete(:priority) || priority
-        run_at       = options.delete(:run_at)   || run_at
-        job_options  = options.delete(:options)  || {}
+        priority     = options.delete(:priority)
+        run_at       = options.delete(:run_at)
+        job_options  = options.delete(:options)
         args.pop if options.size == 0
       end
 
-      job_spec = JobSpec.new(:class_name => job_class.name,
-                             :arguments  => args,
-                             :run_at     => run_at,
-                             :priority   => priority,
-                             :options    => job_options)
+      job_spec = JobSpec.new(
+                         class_name: job_class.name,
+                         arguments:  args,
+                         run_at:     run_at      || Time.now.utc,
+                         priority:   priority    || 1,
+                         options:    job_options || {}
+                         )
 
       job = job_spec.job
       job.run_callbacks(:before_queue, job_spec)
@@ -178,8 +179,8 @@ module Cascade
     REDUCE
 
     def self.queue
-      results = JobSpec.collection.map_reduce MAP_FUNCTION, REDUCE_FUNCTION, :out => {:inline => 1}, :raw => true
-      results['results'].inject({}){|m,e| m[e['_id']] = {:count => e['value']['count'].to_i, :running => e['value']['running'].to_i, :failed => e['value']['failed'].to_i}; m }
+      results = JobSpec.collection.map_reduce MAP_FUNCTION, REDUCE_FUNCTION, out: {inline: 1}, raw: true
+      results['results'].inject({}){|m,e| m[e['_id']] = {count: e['value']['count'].to_i, running: e['value']['running'].to_i, failed: e['value']['failed'].to_i}; m }
     end
 
     private
@@ -187,9 +188,9 @@ module Cascade
         right_now = Time.now.utc
 
         conditions = {
-          :run_at => {'$lte' => right_now},
-          :failed_at => nil,
-          :locked_at => nil
+          run_at: {'$lte' => right_now},
+          failed_at: nil,
+          locked_at: nil
         }
 
         job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, -1], [:run_at, 1]]).all
@@ -200,13 +201,13 @@ module Cascade
         right_now = Time.now.utc
 
         conditions = {
-          :_id => job_spec.id,
-          :locked_at => nil,
-          :locked_by => nil,
-          :run_at => {'$lte' => right_now}
+          _id:       job_spec.id,
+          locked_at: nil,
+          locked_by: nil,
+          run_at:    {'$lte' => right_now}
         }
-        job_spec.collection.update(conditions, {'$set' => {:locked_at => right_now, :locked_by => name}})
-        affected_rows = job_spec.collection.find({:_id => job_spec.id, :locked_by => name}).count
+        job_spec.collection.update(conditions, {'$set' => {locked_at: right_now, locked_by: name}})
+        affected_rows = job_spec.collection.find({_id: job_spec.id, locked_by: name}).count
         if affected_rows == 1
           job_spec.locked_at = right_now
           job_spec.locked_by = name
