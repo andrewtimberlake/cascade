@@ -3,6 +3,18 @@ module Cascade
     attr_reader :number
     attr_accessor :child_pid, :proc_name
 
+    def self.configure(&block)
+      instance_eval(&block)
+    end
+
+    def self.before_fork(&block)
+      @before_fork = block
+    end
+
+    def self.after_fork(&block)
+      @after_fork = block
+    end
+
     def initialize(number)
       @number = number
       self.child_pid = nil
@@ -15,7 +27,9 @@ module Cascade
 
       loop do
         break if $exit
+        call_before_fork
         self.child_pid = fork do
+          call_after_fork
           setup_signal_handlers
 
           completed_jobs = 0
@@ -29,25 +43,6 @@ module Cascade
         end
         pid, status = Process.wait2(child_pid)
         self.child_pid = nil
-      end
-    end
-
-    def set_proc_name
-      $0 = [proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
-    end
-
-    def setup_signal_handlers
-      # puts "Setting up signal handlers for #{Process.pid}"
-      [:INT, :TERM, :QUIT].each do |sig|
-        trap(sig) do
-          begin
-            Process.kill(sig, child_pid) if child_pid
-          rescue Errno::ENOENT, Errno::ESRCH
-            # Child already dead
-          end
-          # puts "#{sig}: exiting #{Process.pid}"
-          $exit = true
-        end
       end
     end
 
@@ -195,6 +190,37 @@ module Cascade
         true
       else
         false
+      end
+    end
+
+    def call_before_fork
+      callback = self.class.instance_variable_get("@before_fork")
+      return unless callback
+      callback.call
+    end
+
+    def call_after_fork
+      callback = self.class.instance_variable_get("@after_fork")
+      return unless callback
+      callback.call
+    end
+
+    def set_proc_name
+      $0 = [proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
+    end
+
+    def setup_signal_handlers
+      # puts "Setting up signal handlers for #{Process.pid}"
+      [:INT, :TERM, :QUIT].each do |sig|
+        trap(sig) do
+          begin
+            Process.kill(sig, child_pid) if child_pid
+          rescue Errno::ENOENT, Errno::ESRCH
+            # Child already dead
+          end
+          # puts "#{sig}: exiting #{Process.pid}"
+          $exit = true
+        end
       end
     end
   end
