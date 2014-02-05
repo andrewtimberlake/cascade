@@ -1,3 +1,6 @@
+#require 'simplecov'
+#SimpleCov.start
+
 require 'rubygems'
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), '..', 'lib'))
 require 'mongo_mapper'
@@ -17,7 +20,7 @@ RSpec.configure do |config|
 end
 
 def fixture(path)
-  File.join(File.dirname(__FILE__), 'fixtures', "#{path}")
+  Pathname.new(File.join(File.dirname(__FILE__), 'fixtures', path))
 end
 
 class MyJob

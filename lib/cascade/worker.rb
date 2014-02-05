@@ -2,6 +2,7 @@ module Cascade
   class Worker
     attr_reader :number
     attr_accessor :child_pid
+
     def initialize(number)
       @number = number
       self.child_pid = nil
@@ -11,24 +12,38 @@ module Cascade
       proc_name = $0
       $0 = [proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
 
-      [:INT, :TERM, :QUIT].each do |sig|
-        trap(sig) do
-          Process.kill(sig, child_pid) if child_pid
-          $exit = true
-        end
-      end
+      setup_signal_handlers
 
       loop do
-        result = run
-
         break if $exit
+        self.child_pid = fork do
+          setup_signal_handlers
 
-        count = result.sum
-        if count.zero?
-          sleep(5)
+          completed_jobs = 0
+          until completed_jobs >= 50
+            break if $exit
+            result = run
+            count = result.sum
+            sleep(5) if count.zero? && !$exit
+          end
         end
+        pid, status = Process.wait2(child_pid)
+        self.child_pid = nil
+      end
+    end
 
-        break if $exit
+    def setup_signal_handlers
+      # puts "Setting up signal handlers for #{Process.pid}"
+      [:INT, :TERM, :QUIT].each do |sig|
+        trap(sig) do
+          begin
+            Process.kill(sig, child_pid) if child_pid
+          rescue Errno::ENOENT, Errno::ESRCH
+            # Child already dead
+          end
+          # puts "#{sig}: exiting #{Process.pid}"
+          $exit = true
+        end
       end
     end
 
@@ -39,7 +54,7 @@ module Cascade
       find_available.each do |job_spec|
         break if $exit
         if lock_exclusively!(job_spec)
-          if run_forked(job_spec)
+          if run_job(job_spec)
             success += 1
           else
             failure += 1
@@ -50,48 +65,10 @@ module Cascade
       [success, failure]
     end
 
-    def run_forked(job_spec)
-      read, write = IO.pipe
+    def run_job(job_spec)
+      job = job_spec.job
+      $0 = "Cascade::Job : #{name} : #{job.describe}"
 
-      self.child_pid = fork do
-        [:INT, :TERM, :QUIT].each do |sig|
-          trap(sig) do
-            $exit = true
-          end
-        end
-
-        read.close
-
-        job_class = job_spec.class_name.constantize
-        if job_class.respond_to?(:after_fork)
-          job_class.run_callbacks(:after_fork, job_spec)
-        end
-        job = job_spec.job
-        $0 = "Cascade::Job : #{name} : #{job.describe}"
-        if run_job(job_spec, job)
-          write.puts '1'
-        else
-          write.puts '0'
-        end
-        write.close
-      end
-      write.close
-      result = read.read.strip
-      pid, status = Process.wait2(child_pid)
-      child_pid = nil
-
-      if status.exitstatus != 0
-        job_spec.reload
-        job_spec.update_attributes(locked_at:  nil,
-                                   locked_by:  nil,
-                                   last_error: 'Child process failure',
-                                   failed_at:  Time.now.utc)
-      end
-
-      return result == '1'
-    end
-
-    def run_job(job_spec, job)
       job_spec.re_run = false
       completed_successully = true
       begin
@@ -184,37 +161,37 @@ module Cascade
     end
 
     private
-      def find_available(num = 10)
-        right_now = Time.now.utc
+    def find_available(num = 10)
+      right_now = Time.now.utc
 
-        conditions = {
-          run_at: {'$lte' => right_now},
-          failed_at: nil,
-          locked_at: nil
-        }
+      conditions = {
+        run_at: {'$lte' => right_now},
+        failed_at: nil,
+        locked_at: nil
+      }
 
-        job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, -1], [:run_at, 1]]).all
-        job_specs
+      job_specs = JobSpec.where(conditions).limit(-num).sort([[:priority, -1], [:run_at, 1]]).all
+      job_specs
+    end
+
+    def lock_exclusively!(job_spec)
+      right_now = Time.now.utc
+
+      conditions = {
+        _id:       job_spec.id,
+        locked_at: nil,
+        locked_by: nil,
+        run_at:    {'$lte' => right_now}
+      }
+      job_spec.collection.update(conditions, {'$set' => {locked_at: right_now, locked_by: name}})
+      affected_rows = job_spec.collection.find({_id: job_spec.id, locked_by: name}).count
+      if affected_rows == 1
+        job_spec.locked_at = right_now
+        job_spec.locked_by = name
+        true
+      else
+        false
       end
-
-      def lock_exclusively!(job_spec)
-        right_now = Time.now.utc
-
-        conditions = {
-          _id:       job_spec.id,
-          locked_at: nil,
-          locked_by: nil,
-          run_at:    {'$lte' => right_now}
-        }
-        job_spec.collection.update(conditions, {'$set' => {locked_at: right_now, locked_by: name}})
-        affected_rows = job_spec.collection.find({_id: job_spec.id, locked_by: name}).count
-        if affected_rows == 1
-          job_spec.locked_at = right_now
-          job_spec.locked_by = name
-          true
-        else
-          false
-        end
-      end
+    end
   end
 end

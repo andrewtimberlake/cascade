@@ -9,5 +9,5 @@ gem "kgio", "~> 2.7"
 group :test do
   gem "rspec"
   gem "timecop"
-  gem "simplecov"
+  gem "simplecov", require: false
 end

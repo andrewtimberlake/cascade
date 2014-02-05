@@ -54,16 +54,10 @@ module Cascade
       job.history.should == [:before_queue]
     end
 
-    it "runs after_fork after forking the job" do
-      job_spec = TestJob.enqueue(:raise_error)
-      Worker.new(1).run_forked job_spec
-      job_spec.reload['after_fork'].should be_true
-    end
-
     it "should run before_queue, before_run, on_success and after_run callbacks on a successful job run" do
       job_spec = TestJob.enqueue
       job = job_spec.job
-      Worker.new(1).run_job(job_spec, job)
+      Worker.new(1).run_job(job_spec)
 
       job.history.should == [:before_queue, :before_run, :on_success, :after_run]
     end
@@ -71,7 +65,7 @@ module Cascade
     it "should run before_queue, before_run, on_error and after_run callbacks on a successful job run" do
       job_spec = TestJob.enqueue(:raise_error)
       job = job_spec.job
-      Worker.new(1).run_job(job_spec, job)
+      Worker.new(1).run_job(job_spec)
 
       job.history.should == [:before_queue, :before_run, :on_error, :after_run]
     end
@@ -80,7 +74,7 @@ module Cascade
       it "should run the parent callbacks on a successful job run" do
         job_spec = SubClassJob.enqueue
         job = job_spec.job
-        Worker.new(1).run_job(job_spec, job)
+        Worker.new(1).run_job(job_spec)
 
         job.history.should == [:before_queue, :before_run, :on_success, :after_run]
       end
@@ -88,7 +82,7 @@ module Cascade
       it "should run it's own callbacks along with the parent callbacks on a successful job run" do
         job_spec = SecondSubClassJob.enqueue
         job = job_spec.job
-        Worker.new(1).run_job(job_spec, job)
+        Worker.new(1).run_job(job_spec)
 
         job.history.should == [:before_queue, :before_run, 'SecondSubClassJob#before_run', :on_success, :after_run]
       end
@@ -98,7 +92,7 @@ module Cascade
       it "runs the parent's parent callbacks" do
         job_spec = SubSubClassJob.enqueue
         job = job_spec.job
-        Worker.new(1).run_job(job_spec, job)
+        Worker.new(1).run_job(job_spec)
 
         job.history.should == [:before_queue, :before_run, :on_success, :after_run]
       end
@@ -107,7 +101,7 @@ module Cascade
     it "can cancel itself in the before_run callback by returning false" do
       job_spec = CancellingJob.enqueue
       job = job_spec.job
-      Worker.new(1).run_job(job_spec, job)
+      Worker.new(1).run_job(job_spec)
 
       job.history.should == [:before_queue, :before_run, :after_run]
     end
