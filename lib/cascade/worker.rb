@@ -1,7 +1,7 @@
 module Cascade
   class Worker
     attr_reader :number
-    attr_accessor :child_pid
+    attr_accessor :child_pid, :proc_name
 
     def initialize(number)
       @number = number
@@ -9,9 +9,8 @@ module Cascade
     end
 
     def start
-      proc_name = $0
-      $0 = [proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
-
+      self.proc_name = $0
+      set_proc_name
       setup_signal_handlers
 
       loop do
@@ -23,6 +22,7 @@ module Cascade
           until completed_jobs >= 50
             break if $exit
             result = run
+            set_proc_name # Re-set it because each job changes to show the job being run
             count = result.sum
             sleep(5) if count.zero? && !$exit
           end
@@ -30,6 +30,10 @@ module Cascade
         pid, status = Process.wait2(child_pid)
         self.child_pid = nil
       end
+    end
+
+    def set_proc_name
+      $0 = [proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
     end
 
     def setup_signal_handlers
