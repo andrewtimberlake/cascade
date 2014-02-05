@@ -51,7 +51,7 @@ module Cascade
       success = 0
       failure = 0
 
-      find_available.each do |job_spec|
+      find_available(50).each do |job_spec|
         break if $exit
         if lock_exclusively!(job_spec)
           if run_job(job_spec)
