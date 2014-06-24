@@ -165,17 +165,12 @@ module Cascade
       right_now = Time.now.utc
 
       conditions = {
-        run_at: {:$lte => right_now},
         failed_at: nil,
         locked_at: nil,
-        priority: {:$gte => 1},
+        run_at: {:$lte => right_now},
       }
 
-      job_specs = JobSpec.where(conditions).limit(-num).all
-      if job_specs.empty?
-        conditions[:priority] = {:$lt => 1}
-        job_specs = JobSpec.where(conditions).limit(-num).all
-      end
+      job_specs = JobSpec.where(conditions).sort(priority: -1).limit(-num).all
       job_specs
     end
 
@@ -186,7 +181,6 @@ module Cascade
         _id:       job_spec.id,
         locked_at: nil,
         locked_by: nil,
-        run_at:    {'$lte' => right_now}
       }
       job_spec.collection.update(conditions, {'$set' => {locked_at: right_now, locked_by: name}})
       affected_rows = job_spec.collection.find({_id: job_spec.id, locked_by: name}).count
