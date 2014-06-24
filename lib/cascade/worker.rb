@@ -1,7 +1,7 @@
 module Cascade
   class Worker
     attr_reader :number
-    attr_accessor :child_pid, :proc_name
+    attr_accessor :child_pid, :original_proc_name
 
     def self.configure(&block)
       instance_eval(&block)
@@ -21,29 +21,33 @@ module Cascade
     end
 
     def start
-      self.proc_name = $0
+      self.original_proc_name = $0
       set_proc_name
       setup_signal_handlers
 
       loop do
         break if $exit
-        call_before_fork
-        self.child_pid = fork do
-          call_after_fork
-          setup_signal_handlers
-
-          completed_jobs = 0
-          until completed_jobs >= 50
-            break if $exit
-            result = run
-            set_proc_name # Re-set it because each job changes to show the job being run
-            count = result.sum
-            completed_jobs += count
-            sleep(5) if count.zero? && !$exit
-          end
-        end
+        self.child_pid = fork_child
         pid, status = Process.wait2(child_pid)
         self.child_pid = nil
+      end
+    end
+
+    def fork_child
+      call_before_fork
+      fork do
+        call_after_fork
+        setup_signal_handlers
+
+        completed_jobs = 0
+        until completed_jobs >= 50
+          break if $exit
+          result = run
+          set_proc_name # Re-set it because each job changes to show the job being run
+          count = result.sum
+          completed_jobs += count
+          sleep(5) if count.zero? && !$exit
+        end
       end
     end
 
@@ -51,14 +55,14 @@ module Cascade
       success = 0
       failure = 0
 
-      find_available(50).each do |job_spec|
+      JobSpec.find_available(50).each do |job_spec|
         break if $exit
-        if lock_exclusively!(job_spec)
-          if run_job(job_spec)
-            success += 1
-          else
-            failure += 1
-          end
+        break unless job_spec.lock_exclusively!(name)
+
+        if run_job(job_spec)
+          success += 1
+        else
+          failure += 1
         end
       end
 
@@ -161,38 +165,6 @@ module Cascade
     end
 
     private
-    def find_available(num = 10)
-      right_now = Time.now.utc
-
-      conditions = {
-        failed_at: nil,
-        locked_at: nil,
-        run_at: {:$lte => right_now},
-      }
-
-      job_specs = JobSpec.where(conditions).sort(priority: -1).limit(-num).all
-      job_specs
-    end
-
-    def lock_exclusively!(job_spec)
-      right_now = Time.now.utc
-
-      conditions = {
-        _id:       job_spec.id,
-        locked_at: nil,
-        locked_by: nil,
-      }
-      job_spec.collection.update(conditions, {'$set' => {locked_at: right_now, locked_by: name}})
-      affected_rows = job_spec.collection.find({_id: job_spec.id, locked_by: name}).count
-      if affected_rows == 1
-        job_spec.locked_at = right_now
-        job_spec.locked_by = name
-        true
-      else
-        false
-      end
-    end
-
     def call_before_fork
       callback = self.class.instance_variable_get("@before_fork")
       return unless callback
@@ -206,7 +178,7 @@ module Cascade
     end
 
     def set_proc_name
-      $0 = [proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
+      $0 = [original_proc_name.sub(/master/, '').strip, "worker #{number}"].join(' ')
     end
 
     def setup_signal_handlers
