@@ -40,7 +40,7 @@ module Cascade
         locked_by: nil,
       }
       result = collection.update(conditions, {:$set => {locked_at: right_now, locked_by: worker_name}})
-      result['updatedExisting']
+      result['updatedExisting'] || result['nModified'] > 0
     end
 
     def job
