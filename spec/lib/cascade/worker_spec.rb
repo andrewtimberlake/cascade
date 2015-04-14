@@ -14,7 +14,7 @@ module Cascade
       let!(:job_spec) { Worker.enqueue(MyJob, :one, :two) }
 
       it "creates a job spec with the specified class" do
-        job_spec.class_name.should eql('MyJob')
+        job_spec.job_class.should eql('MyJob')
       end
 
       it "creates a job spec with the correct arguments" do

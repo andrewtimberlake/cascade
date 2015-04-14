@@ -101,6 +101,8 @@ module Cascade
         job_spec.save!
       end
       completed_successully
+    ensure
+      job_spec.unlock!
     end
 
     def self.enqueue(job_class, *args)

@@ -10,6 +10,10 @@ module Cascade
       find_by_sql(["SELECT * FROM cascade_lock_job(?)", queue_name]).first
     end
 
+    def unlock!
+      self.class.connection.execute("SELECT pg_advisory_unlock(#{self.id})")
+    end
+
     def self.stats(queue_name=nil)
       query = Cascade::JobStats.all
       if queue_name
