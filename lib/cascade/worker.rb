@@ -55,14 +55,17 @@ module Cascade
       success = 0
       failure = 0
 
-      JobSpec.find_available(50).each do |job_spec|
-        break if $exit
-        break unless job_spec.lock_exclusively!(name)
+      1.upto(50).each do
+        JobSpec.transaction do
+          job_spec = JobSpec.checkout_job
+          break unless job_spec
+          break if $exit
 
-        if run_job(job_spec)
-          success += 1
-        else
-          failure += 1
+          if run_job(job_spec)
+            success += 1
+          else
+            failure += 1
+          end
         end
       end
 
@@ -91,9 +94,6 @@ module Cascade
         completed_successully = false
       ensure
         job.run_callbacks(:after_run, job_spec)
-
-        job_spec.locked_by = nil
-        job_spec.locked_at = nil
       end
       if completed_successully && !job_spec.re_run?
         job_spec.destroy
@@ -114,19 +114,21 @@ module Cascade
         args.pop if options.size == 0
       end
 
-      job_spec = JobSpec.new(
-                         class_name: job_class.name,
-                         arguments:  args,
-                         run_at:     run_at      || Time.now.utc,
-                         priority:   priority    || 1,
-                         options:    job_options || {}
-                         )
+      JobSpec.transaction do
+        job_spec = JobSpec.new(
+          job_class:  job_class.name,
+          arguments:  args,
+          run_at:     run_at      || Time.now.utc,
+          priority:   priority    || 1,
+          options:    job_options || {}
+        )
 
-      job = job_spec.job
-      job.run_callbacks(:before_queue, job_spec)
+        job = job_spec.job
+        job.run_callbacks(:before_queue, job_spec)
 
-      job_spec.save!
-      job_spec
+        job_spec.save!
+        job_spec
+      end
     end
 
     def name=(name)
@@ -139,29 +141,6 @@ module Cascade
 
     def generate_name
       "#{Socket.gethostname} pid:#{Process.pid}" rescue "pid:#{Process.pid}"
-    end
-
-    MAP_FUNCTION = <<-MAP
-      function () {
-        emit(this.class_name, {count:1, running:this.locked_at == null ? 0 : 1, failed:this.failed_at == null ? 0 : 1});
-      }
-    MAP
-
-    REDUCE_FUNCTION = <<-REDUCE
-      function (k, v) {
-        obj = {count:0, running:0, failed:0};
-        for (var i in v) {
-          obj.count += v[i].count;
-          obj.running += v[i].running;
-          obj.failed += v[i].failed;
-        }
-        return obj;
-      }
-    REDUCE
-
-    def self.queue
-      results = JobSpec.collection.map_reduce MAP_FUNCTION, REDUCE_FUNCTION, out: {inline: 1}, raw: true
-      results['results'].inject({}){|m,e| m[e['_id']] = {count: e['value']['count'].to_i, running: e['value']['running'].to_i, failed: e['value']['failed'].to_i}; m }
     end
 
     private
