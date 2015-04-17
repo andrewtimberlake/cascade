@@ -59,16 +59,14 @@ module Cascade
       failure = 0
 
       1.upto(50).each do
-        JobSpec.transaction do
-          job_spec = JobSpec.checkout_job
-          break unless job_spec
-          break if $exit
+        job_spec = JobSpec.checkout_job
+        break unless job_spec
+        break if $exit
 
-          if run_job(job_spec)
-            success += 1
-          else
-            failure += 1
-          end
+        if run_job(job_spec)
+          success += 1
+        else
+          failure += 1
         end
       end
 
@@ -89,21 +87,22 @@ module Cascade
       rescue ReRun => ex
         completed_successully = false
       rescue Exception => ex
-        job_spec.last_error = ["#{ex.class.name}: #{ex.message}", ex.backtrace].flatten.join("\n")
-        job_spec.failed_at = Time.now.utc
-
         job.run_callbacks(:on_error, job_spec)
-
-        completed_successully = false
+        raise ex
       ensure
         job.run_callbacks(:after_run, job_spec)
       end
+
       if completed_successully && !job_spec.re_run?
         job_spec.destroy
       else
         job_spec.save!
       end
       completed_successully
+    rescue Exception => ex
+      job_spec.last_error = ["#{ex.class.name}: #{ex.message}", ex.backtrace].flatten.join("\n")
+      job_spec.failed_at = Time.now.utc
+      job_spec.save!
     ensure
       job_spec.unlock!
     end
