@@ -7,7 +7,11 @@ module Cascade
     end
 
     def self.checkout_job(queue_name='default')
-      find_by_sql(["SELECT * FROM cascade_lock_job(?)", queue_name]).first
+      spec = find_by_sql(["SELECT * FROM cascade_lock_job(?)", queue_name]).first
+      return nil unless spec
+      spec.reload
+    rescue ActiveRecord::RecordNotFound
+      retry
     end
 
     def unlock!
