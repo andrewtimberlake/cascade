@@ -37,18 +37,20 @@ module Cascade
       call_before_fork
       fork do
         call_after_fork
-        setup_signal_handlers
+        ActiveRecord::Base.connection_pool.with_connection do
+          setup_signal_handlers
 
-        completed_jobs = 0
-        until completed_jobs >= 50
-          break if $exit
-          result = run
-          set_proc_name # Re-set it because each job changes to show the job being run
-          count = result.sum
-          completed_jobs += count
-          if count.zero? && !$exit
-            $0 = "Cascade::Job : #{name} : sleeping"
-            sleep(5)
+          completed_jobs = 0
+          until completed_jobs >= 50
+            break if $exit
+            result = run
+            set_proc_name # Re-set it because each job changes to show the job being run
+            count = result.sum
+            completed_jobs += count
+            if count.zero? && !$exit
+              $0 = "Cascade::Job : #{name} : sleeping"
+              sleep(5)
+            end
           end
         end
       end
