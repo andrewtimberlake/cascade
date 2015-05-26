@@ -7,12 +7,15 @@ module Cascade
     end
 
     def self.checkout_job(queue_name='default')
-      while true
-        spec = find_by_sql(["SELECT * FROM cascade_lock_job(?)", queue_name]).first
-        return nil unless spec
-        return spec unless count_by_sql(["SELECT 1 FROM cascade_jobs WHERE id = ?", spec.id]).zero?
+      spec = find_by_sql(["SELECT * FROM cascade_get_available_job()", queue_name]).first
+      return nil unless spec
+
+      if count_by_sql(["SELECT 1 FROM cascade_jobs WHERE id = ?", spec.id]).zero?
+        fail "Didn't lock the job correctly"
         spec.unlock!
       end
+
+      spec
     end
 
     def unlock!
