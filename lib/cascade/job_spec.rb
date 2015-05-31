@@ -37,7 +37,8 @@ module Cascade
     def reset!
       update_attributes(failed_at:   nil,
                         error_count: 0,
-                        last_error:  nil)
+                        last_error:  nil,
+                        run_at:      Time.now.utc)
     end
   end
 end
